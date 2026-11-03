@@ -1,0 +1,27 @@
+# OS files
+.DS_Store
+Thumbs.db
+*.DS_Store
+
+# Dependencies & Build Outputs
+node_modules/
+dist/
+bin/
+obj/
+publish/
+
+# Runtime Data, Photos & Local Cache
+data/
+backend/data/
+photos/
+backend/data/photos/
+*.local
+.local/
+Library/
+
+# Environment & Local Configuration
+.env
+.env.local
+*.env
+appsettings.Local.json
+appsettings.Development.json
