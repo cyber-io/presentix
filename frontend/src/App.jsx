@@ -483,15 +483,10 @@ export default function App() {
           'super_admin': 'superadmin@present.local',
           'admin': 'superadmin@present.local',
           'manager': 'manager@present.local',
-          'user': 'sarah.connor@present.local',
-          'sarah': 'sarah.connor@present.local',
-          'sarah.connor': 'sarah.connor@present.local',
           'kunal': 'kunal.sugandhi@present.local',
           'kunal.sugandhi': 'kunal.sugandhi@present.local',
           'piyush': 'piyush.layge@present.local',
           'piyush.layge': 'piyush.layge@present.local',
-          'alex': 'alex.rivera@present.local',
-          'alex.rivera': 'alex.rivera@present.local',
           'maya': 'maya@present.local',
           'maya.lin': 'maya@present.local',
           'rohan': 'rohan.verma@present.local',
@@ -4029,7 +4024,7 @@ export default function App() {
                   }}
                   required
                   maxLength={100}
-                  placeholder="e.g. Sarah Connor"
+                  placeholder="Enter employee full name"
                   autoFocus
                 />
               </label>

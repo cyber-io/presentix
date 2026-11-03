@@ -748,16 +748,7 @@ public class Store {
     public async Task<List<Employee>> Employees() {
         if (!demo) return await Remote<List<Employee>>(HttpMethod.Get, "/rest/v1/employees?select=*&order=name");
         await gate.WaitAsync(); try {
-            var list = Read<Employee>("employees.json");
-            if (list.Count == 0) {
-                list = [
-                    new Employee(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Sarah Connor", "sarah.connor@present.local", "Operations Lead", 52000m, "INR", DateTimeOffset.UtcNow, null, "Sarah@2026", false, "EMP-1001", "Operations", "General Morning (09:00 - 18:00)", DateTimeOffset.UtcNow, true),
-                    new Employee(Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Sarah Connor", "sarah.connor@present.local", "Senior Engineer", 68000m, "INR", DateTimeOffset.UtcNow, null, "Sarah@2026", false, "EMP-1002", "Engineering", "General Morning (09:00 - 18:00)", DateTimeOffset.UtcNow, true),
-                    new Employee(Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"), "cccccccc-cccc-cccc-cccc-cccccccccccc", "Alex Rivera", "alex.rivera@present.local", "Product Designer", 49000m, "INR", DateTimeOffset.UtcNow, null, "Alex@2026", false, "EMP-1003", "Design", "General Morning (09:00 - 18:00)", DateTimeOffset.UtcNow, true)
-                ];
-                Save("employees.json", list);
-            }
-            return list;
+            return Read<Employee>("employees.json");
         } finally { gate.Release(); }
     }
     public async Task<Employee> AddEmployee(EmployeeInput input) {
