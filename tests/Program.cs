@@ -14,7 +14,7 @@ Check(Math.Abs(Guard.Distance(0,0,0,1)-111195)<2,"known equatorial distance");
 Reject(()=>Guard.Position(valid with{Latitude=91}),"latitude range");
 Reject(()=>Guard.Position(valid with{Longitude=double.NaN}),"non-finite coordinate");
 Reject(()=>Guard.Position(valid with{AccuracyMeters=0}),"zero accuracy");
-Reject(()=>Guard.Position(valid with{AccuracyMeters=101}),"poor accuracy");
+Reject(()=>Guard.Position(valid with{AccuracyMeters=251}),"poor accuracy");
 Reject(()=>Guard.Position(valid with{CapturedAt=DateTimeOffset.UtcNow.AddMinutes(-2)}),"stale location");
 Reject(()=>Guard.Position(valid with{CapturedAt=DateTimeOffset.UtcNow.AddMinutes(2)}),"future location");
 Reject(()=>Guard.Photo("https://example.com/fake.jpg"),"remote photo URL");

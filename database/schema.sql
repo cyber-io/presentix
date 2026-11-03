@@ -71,7 +71,7 @@ create table if not exists public.system_settings (
   salary_model text not null default 'fixed_26',
   overtime_multiplier double precision not null default 1.5,
   default_geofence_radius int not null default 50,
-  max_gps_accuracy int not null default 100,
+  max_gps_accuracy int not null default 250,
   strict_geofence boolean not null default true,
   face_match_threshold double precision not null default 0.45,
   face_check_mode text not null default 'both',

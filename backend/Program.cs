@@ -384,10 +384,13 @@ app.MapGet("/api/attendance", async (string? user_id, Store s, HttpContext c) =>
     return await s.History(target);
 });
 app.MapPost("/api/attendance", async (Submission input, Store s, FaceVerificationService faces, HttpContext c) => {
-    Guard.Position(input);
+    var sysSettings = await s.GetSettings();
+    var maxAcc = Math.Max(sysSettings.MaxGpsAccuracy, 250);
+    Guard.Position(input, maxAcc);
     var office = (await s.Offices()).SingleOrDefault(o => o.Id == input.OfficeId) ?? throw new RuleException("Office not found.", 404);
     var distance = Guard.Distance(input.Latitude, input.Longitude, office.Latitude, office.Longitude);
-    if (distance + input.AccuracyMeters > office.RadiusMeters) throw new RuleException("You must be fully inside the office boundary. Move closer or improve GPS accuracy.");
+    if (sysSettings.StrictGeofence && distance > office.RadiusMeters) 
+        throw new RuleException($"You are {Math.Round(distance)}m away from {office.Name}. You must be inside the {office.RadiusMeters}m workplace boundary to mark attendance.");
     if (input.CheckType is not ("CHECK_IN" or "CHECK_OUT")) throw new RuleException("Invalid attendance action.");
     var photo = Guard.Photo(input.PhotoBase64);
 
@@ -602,7 +605,7 @@ public record SystemSettings(
     string SalaryModel = "fixed_26",
     double OvertimeMultiplier = 1.5,
     int DefaultGeofenceRadius = 50,
-    int MaxGpsAccuracy = 100,
+    int MaxGpsAccuracy = 250,
     bool StrictGeofence = true,
     double FaceMatchThreshold = 0.45,
     string FaceCheckMode = "both",
@@ -654,10 +657,10 @@ public static class Guard {
         if (string.IsNullOrWhiteSpace(e.Email) || e.Email.Trim().Length > 150 || !e.Email.Contains('@')) throw new RuleException("Enter a valid email address.");
         if (e.MonthlySalary < 0 || e.MonthlySalary > 1_000_000_000) throw new RuleException("Enter a valid monthly salary (zero or greater).");
     }
-    public static void Position(Submission s) {
-        if (!double.IsFinite(s.Latitude) || Math.Abs(s.Latitude)>90 || !double.IsFinite(s.Longitude) || Math.Abs(s.Longitude)>180 || !double.IsFinite(s.AccuracyMeters) || s.AccuracyMeters <= 0 || s.AccuracyMeters > 100) throw new RuleException("A valid GPS reading with accuracy of 100 metres or better is required.");
+    public static void Position(Submission s, double maxAccuracy = 250) {
+        if (!double.IsFinite(s.Latitude) || Math.Abs(s.Latitude)>90 || !double.IsFinite(s.Longitude) || Math.Abs(s.Longitude)>180 || !double.IsFinite(s.AccuracyMeters) || s.AccuracyMeters <= 0 || s.AccuracyMeters > maxAccuracy) throw new RuleException($"A valid GPS reading with accuracy of {maxAccuracy} metres or better is required.");
         var age = DateTimeOffset.UtcNow - s.CapturedAt;
-        if (age.TotalSeconds > 75 || age.TotalSeconds < -30) throw new RuleException("Your location expired. Verify your location again.");
+        if (age.TotalSeconds > 120 || age.TotalSeconds < -30) throw new RuleException("Your location expired. Verify your location again.");
     }
     public static byte[] Photo(string value) {
         if (string.IsNullOrEmpty(value) || !value.StartsWith("data:image/jpeg;base64,") || value.Length > 4_000_000) throw new RuleException("A JPEG camera photo under 3 MB is required.");

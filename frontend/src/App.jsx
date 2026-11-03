@@ -242,7 +242,8 @@ export default function App() {
   const video = useRef(null), watch = useRef(null), streamRef = useRef(null), cameraGeneration = useRef(0);
   const office = offices.find(o => o.id === officeId), metres = position && office ? distance(position, office) : null;
   const fresh = position && (mode === 'demo' ? true : now - position.timestamp < 300000);
-  const inside = Boolean(fresh && office && position.accuracy <= 100 && position.accuracy > 0 && metres + position.accuracy <= office.radius_meters);
+  const maxAllowedAccuracy = Math.max(systemSettings?.maxGpsAccuracy || 250, 250);
+  const inside = Boolean(fresh && office && position && position.accuracy > 0 && position.accuracy <= maxAllowedAccuracy && metres <= office.radius_meters);
   const last = records[0], checkedIn = last?.check_type === 'CHECK_IN', nextType = checkedIn ? 'CHECK_OUT' : 'CHECK_IN';
 
   async function api(path, options = {}, sessionOverride) {
@@ -1047,8 +1048,9 @@ export default function App() {
     try {
       if (Date.now() - photoTime > 300000) throw Error('Your photo expired. Please retake your photo with the camera.');
       let pos = position;
-      if (!pos || pos.accuracy > 100 || pos.accuracy <= 0 || distance(pos, office) + pos.accuracy > office.radius_meters)
-        throw Error('Location could not be verified inside ' + (office?.name || 'the workplace') + '. Move inside boundary and retry.');
+      const maxAllowedAccuracy = Math.max(systemSettings?.maxGpsAccuracy || 250, 250);
+      if (!pos || pos.accuracy <= 0 || pos.accuracy > maxAllowedAccuracy || distance(pos, office) > office.radius_meters)
+        throw Error(`Location could not be verified inside ${office?.name || 'the workplace'}. (Distance: ${Math.round(distance(pos, office))}m, Boundary: ${office?.radius_meters}m). Move inside boundary and retry.`);
 
       // Resolve the actual employee performing check in / check out
       const resolvedUserId = (panel === 'user' && emulatedUserId && (authSession?.is_admin || authSession?.is_super_admin))
