@@ -150,6 +150,7 @@ export default function App() {
 
   // Modals
   const [showOffice, setShowOffice] = useState(false);
+  const [editingOffice, setEditingOffice] = useState(null);
   const [officeLocating, setOfficeLocating] = useState(false);
   const [officeLocationAccuracy, setOfficeLocationAccuracy] = useState(null);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
@@ -1131,9 +1132,40 @@ export default function App() {
 
   function openAddOffice() {
     setError('');
+    setEditingOffice(null);
     setOfficeLocating(false);
     setOfficeLocationAccuracy(null);
     setShowOffice(true);
+  }
+
+  function openEditOffice(officeToEdit) {
+    setError('');
+    setEditingOffice(officeToEdit);
+    setOfficeLocating(false);
+    setOfficeLocationAccuracy(null);
+    setShowOffice(true);
+  }
+
+  async function deleteOffice(officeToDelete) {
+    if (!isSuperAdmin) return;
+    if (!window.confirm(`Are you sure you want to remove "${officeToDelete.name}"?`)) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/offices/${officeToDelete.id}`, { method: 'DELETE' });
+      setOffices(old => old.filter(o => o.id !== officeToDelete.id));
+      if (officeId === officeToDelete.id) {
+        const remaining = offices.filter(o => o.id !== officeToDelete.id);
+        const nextId = remaining[0]?.id || '';
+        setOfficeId(nextId);
+        saveOfficePreference(localStorage, authSession?.user_id || authSession?.id || me?.user_id || me?.id, nextId);
+      }
+      setNotice(`Workplace "${officeToDelete.name}" removed successfully.`);
+    } catch (err) {
+      setError(err.message || 'Failed to remove office location.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function useCurrentOfficeLocation(event) {
@@ -1156,8 +1188,6 @@ export default function App() {
       }
       form.elements.namedItem('latitude').value = latitude.toFixed(7);
       form.elements.namedItem('longitude').value = longitude.toFixed(7);
-      if (!form.elements.namedItem('name').value.trim()) form.elements.namedItem('name').value = 'Testing Location';
-      if (!form.elements.namedItem('address').value.trim()) form.elements.namedItem('address').value = 'Current device location (testing)';
       setOfficeLocationAccuracy(Number.isFinite(accuracy) ? Math.round(accuracy) : null);
     }, error => {
       if (!form.isConnected) return;
@@ -1180,26 +1210,44 @@ export default function App() {
     setBusy(true);
     setError('');
     try {
-      const saved = await api('/offices', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: '00000000-0000-0000-0000-000000000000',
-          name: f.get('name'),
-          address: f.get('address'),
-          latitude: Number(f.get('latitude')),
-          longitude: Number(f.get('longitude')),
-          radius_meters: Number(f.get('radius'))
-        })
-      });
-      setOffices(old => [...old, saved]);
-      setOfficeId(saved.id);
-      saveOfficePreference(localStorage, authSession?.user_id || authSession?.id || me?.user_id || me?.id, saved.id);
-      setShowOffice(false);
-      setNotice('Office location added. You can now verify your location.')
+      const officePayload = {
+        name: f.get('name')?.toString().trim(),
+        address: f.get('address')?.toString().trim(),
+        latitude: Number(f.get('latitude')),
+        longitude: Number(f.get('longitude')),
+        radius_meters: Number(f.get('radius'))
+      };
+
+      if (editingOffice) {
+        const updated = await api(`/offices/${editingOffice.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(officePayload)
+        });
+        setOffices(old => old.map(o => o.id === editingOffice.id ? updated : o));
+        if (officeId === editingOffice.id) {
+          setOfficeId(updated.id);
+        }
+        setShowOffice(false);
+        setEditingOffice(null);
+        setNotice(`✓ Workplace "${updated.name}" updated successfully.`);
+      } else {
+        const saved = await api('/offices', {
+          method: 'POST',
+          body: JSON.stringify({
+            id: '00000000-0000-0000-0000-000000000000',
+            ...officePayload
+          })
+        });
+        setOffices(old => [...old, saved]);
+        setOfficeId(saved.id);
+        saveOfficePreference(localStorage, authSession?.user_id || authSession?.id || me?.user_id || me?.id, saved.id);
+        setShowOffice(false);
+        setNotice(`✓ Workplace "${saved.name}" added successfully.`);
+      }
     } catch (e) {
-      setError(e.message)
+      setError(e.message);
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
@@ -3484,6 +3532,28 @@ export default function App() {
                         <h2>{o.name}</h2>
                         <p>{o.address}</p>
                         <small>{o.latitude.toFixed(5)}, {o.longitude.toFixed(5)}</small>
+                        {isSuperAdmin && (
+                          <div className="office-card-actions">
+                            <button
+                              type="button"
+                              className="action-pill view"
+                              onClick={() => openEditOffice(o)}
+                              title="Edit location name, coordinates, or boundary radius"
+                            >
+                              <Edit3 size={14} /> Edit Location
+                            </button>
+                            {offices.length > 1 && (
+                              <button
+                                type="button"
+                                className="action-pill remove"
+                                onClick={() => deleteOffice(o)}
+                                title="Remove office location"
+                              >
+                                <Trash2 size={13} /> Remove
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </section>
                     ))}
                   </div>
@@ -4318,32 +4388,32 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL: ADD OFFICE (SUPER ADMIN ONLY) */}
+      {/* MODAL: ADD / EDIT OFFICE (SUPER ADMIN ONLY) */}
       {showOffice && isSuperAdmin && (
         <div className="modal-backdrop">
           <section className="modal" role="dialog" aria-modal="true" aria-labelledby="office-title">
             <div className="card-title">
-              <h2 id="office-title">Add an office location</h2>
-              <button aria-label="Close" disabled={busy} onClick={() => setShowOffice(false)}><X /></button>
+              <h2 id="office-title">{editingOffice ? 'Edit Workplace Location' : 'Add an office location'}</h2>
+              <button aria-label="Close" disabled={busy} onClick={() => { setShowOffice(false); setEditingOffice(null); }}><X /></button>
             </div>
-            <p>Set the fixed centre and permitted attendance radius.</p>
-            <form onSubmit={saveOffice}>
-              <label>Office name<input name="name" required maxLength={100} placeholder="e.g. Main office" autoFocus /></label>
-              <label>Address<input name="address" required maxLength={250} placeholder="Street and city" /></label>
+            <p>{editingOffice ? 'Modify office coordinates, address, and boundary radius.' : 'Set the fixed centre and permitted attendance radius.'}</p>
+            <form key={editingOffice?.id || 'new'} onSubmit={saveOffice}>
+              <label>Office name<input name="name" required maxLength={100} defaultValue={editingOffice?.name || ''} placeholder="e.g. Krishna Gaushala Jainabad" autoFocus /></label>
+              <label>Address<input name="address" required maxLength={250} defaultValue={editingOffice?.address || ''} placeholder="Street and city" /></label>
               <div className="form-row">
-                <label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" required /></label>
-                <label>Longitude<input name="longitude" type="number" step="any" min="-180" max="180" required /></label>
+                <label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" defaultValue={editingOffice?.latitude ?? ''} required /></label>
+                <label>Longitude<input name="longitude" type="number" step="any" min="-180" max="180" defaultValue={editingOffice?.longitude ?? ''} required /></label>
               </div>
               <button type="button" className="secondary full" disabled={busy || officeLocating} onClick={useCurrentOfficeLocation}>
                 {officeLocating ? <LoaderCircle className="spin" size={17} /> : <MapPin size={17} />}
                 {officeLocating ? 'Getting your location…' : 'Use current location'}
               </button>
               {officeLocationAccuracy !== null && (
-                <p role="status">Device location filled · reported accuracy ±{officeLocationAccuracy} m. {officeLocationAccuracy > 100 ? 'Attendance needs a reading within 100 m; a phone may provide better accuracy.' : 'Save to add this location.'}</p>
+                <p role="status">Device location filled · reported accuracy ±{officeLocationAccuracy} m. {officeLocationAccuracy > 100 ? 'Attendance needs a reading within 100 m; a phone may provide better accuracy.' : 'Save to apply this location.'}</p>
               )}
-              <label>Radius in metres<input name="radius" type="number" min="20" max="1000" defaultValue="150" required /></label>
+              <label>Radius in metres<input name="radius" type="number" min="20" max="1000" defaultValue={editingOffice?.radius_meters || 150} required /></label>
               {error && <div className="alert" role="alert">{error}</div>}
-              <button className="primary full" disabled={busy || officeLocating}>{busy ? 'Saving…' : 'Save office location'}<ArrowRight size={17} /></button>
+              <button className="primary full" disabled={busy || officeLocating}>{busy ? 'Saving…' : editingOffice ? 'Save Changes' : 'Save office location'}<ArrowRight size={17} /></button>
             </form>
           </section>
         </div>

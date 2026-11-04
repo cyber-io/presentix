@@ -120,6 +120,12 @@ app.MapPut("/api/offices/{id:guid}", async (Guid id, Office o, Store s, HttpCont
     var updated = await s.UpdateOffice(id, o);
     return updated != null ? Results.Ok(updated) : Results.NotFound();
 }).RequireRateLimiting("writes");
+app.MapDelete("/api/offices/{id:guid}", async (Guid id, Store s, HttpContext c) => {
+    var isSuper = (bool)(c.Items["super_admin"] ?? false);
+    if (!isSuper && !demo) return Results.StatusCode(403);
+    var ok = await s.DeleteOffice(id);
+    return ok ? Results.Ok(new { success = true }) : Results.NotFound();
+}).RequireRateLimiting("writes");
 app.MapPost("/api/offices/calibrate-testing", async (CalibrateInput input, Store s) => {
     if (!double.IsFinite(input.Latitude) || Math.Abs(input.Latitude) > 90 || !double.IsFinite(input.Longitude) || Math.Abs(input.Longitude) > 180)
         throw new RuleException("Invalid coordinates.");
@@ -724,6 +730,20 @@ public class Store {
             list[idx] = updated with { Id = list[idx].Id };
             Save("offices.json", list);
             return list[idx];
+        } finally { gate.Release(); }
+    }
+    public async Task<bool> DeleteOffice(Guid id) {
+        if (!demo) {
+            try {
+                await Remote<object>(HttpMethod.Delete, $"/rest/v1/offices?id=eq.{id}");
+                return true;
+            } catch { return false; }
+        }
+        await gate.WaitAsync(); try {
+            var list = Read<Office>("offices.json");
+            var count = list.RemoveAll(o => o.Id == id);
+            if (count > 0) Save("offices.json", list);
+            return count > 0;
         } finally { gate.Release(); }
     }
     public static string GenerateEmail(string name) {

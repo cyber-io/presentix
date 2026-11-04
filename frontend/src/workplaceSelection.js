@@ -3,7 +3,6 @@ const preferenceKey = accountId => `present_office:${accountId}`;
 export function chooseAttendanceOffice(offices, preferredId) {
   const places = Array.isArray(offices) ? offices : [];
   return places.find(place => place.id === preferredId)?.id
-    || places.find(place => place.name?.trim().toLowerCase() === 'testing location')?.id
     || places.find(place => place.name?.toLowerCase().includes('krishna'))?.id
     || places[0]?.id
     || '';

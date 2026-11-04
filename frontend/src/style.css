@@ -2784,3 +2784,18 @@ nav button:active,
   width: 440px;
   max-width: 95%;
 }
+
+/* Office Card Actions */
+.office-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.office-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #edf1e7;
+}
